@@ -1,91 +1,103 @@
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import String, Boolean, ForeignKey
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import String, Integer, Boolean, ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 db = SQLAlchemy()
 
 
 class User(db.Model):
+
+    __tablename__ = "users"
+
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     username:  Mapped[str] = mapped_column(
         String(120), unique=True, nullable=False)
-    firstname:  Mapped[str] = mapped_column(
-        String(120), unique=False, nullable=False)
-    lastname:  Mapped[str] = mapped_column(
-        String(120), unique=False, nullable=False)
     email: Mapped[str] = mapped_column(
+        String(120), unique=True, nullable=False)
+    password: Mapped[str] = mapped_column(
         String(120), unique=True, nullable=False)
 
     def serialize(self):
         return {
             "id": self.id,
             "username": self.username,
-            "firstname": self.firstname,
-            "lastname": self.lastname,
             "email": self.email
-
-            # do not serialize the password, its a security breach
         }
 
 
-class Follower(db.Model):
-    user_from_id: Mapped[int] = mapped_column(ForeignKey(
-        "user.id"), primary_key=True)
-    user_to_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
+class Author(db.Model):
 
-    def serialize(self):
-        return {
-            "user_from_id": self.user_from_id,
-            "user_to_id": self.user_to_id
+    __tablename__ = "authors"
 
-            # do not serialize the password, its a security breach
-        }
-
-
-class Post(db.Model):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
+    name: Mapped[str] = mapped_column(
+        String(120), unique=False, nullable=False)
+    # relacion
+
+    books = relationship("Book", back_populates="author")
 
     def serialize(self):
         return {
             "id": self.id,
-            "user_id": self.user_id
-
-            # do not serialize the password, its a security breach
+            "name": self.name,
+            "books": [book.serialize() for book in self.books],
+            "genre": self.genre_id
         }
 
 
-class Comment(db.Model):
+class Book(db.Model):
+    __tablename__ = "books"
+
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    author_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
-    post_id: Mapped[int] = mapped_column(ForeignKey("post.id"))
-    comment_text: Mapped[str] = mapped_column(
+    name: Mapped[str] = mapped_column(
         String(120), unique=False, nullable=False)
+    author_id: Mapped[int] = mapped_column(ForeignKey("authors.id"))
+    year: Mapped[int] = mapped_column(unique=False, nullable=True)
+    genre_id: Mapped[int] = mapped_column(ForeignKey("genres.id"))
+
+    # relacion
+
+    author = relationship("Author", back_populates="books")
+
+    def serialize(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "author_id": self.author_id,
+            "year": self.year
+        }
+
+
+class Genre(db.Model):
+    __tablename__ = "genres"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(50))
+
+    # relacion
+
+    authors = relationship("Author", back_populates="genre")
 
     def serialize(self):
         return {
             "id": self.id,
             "author_id": self.author_id,
-            "post_id": self.post_id,
-            "comment_text": self.comment_text
+            "book_id": self.book_id,
+            "genre_name": self.name
 
-            # do not serialize the password, its a security breach
         }
 
 
-class Media(db.Model):
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    url: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
-    type: Mapped[str] = mapped_column(
-        String(120), unique=False, nullable=False)
-    post_id: Mapped[int] = mapped_column(ForeignKey("post.id"))
+class Favorites(db.Model):
+    __tablename__ = "favorites"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey(
+        "users.id", ondelete="CASCADE"), primary_key=True)
+    book_id: Mapped[int] = mapped_column(ForeignKey(
+        "books.id", ondelete="CASCADE"), primary_key=True)
 
     def serialize(self):
         return {
-            "id": self.id,
-            "url": self.url,
-            "type": self.type,
-            "post_id": self.post_id
-
-            # do not serialize the password, its a security breach
+            "user_id": self.user_id,
+            "book_id": self.book_id,
         }
